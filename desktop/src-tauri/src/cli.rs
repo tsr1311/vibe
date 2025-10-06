@@ -197,14 +197,13 @@ pub async fn run(app_handle: &AppHandle) -> Result<()> {
         max_sentence_len: args.max_sentence_len,
         sampling_strategy: None,
         sampling_bestof_or_beam_size: None,
+        model: Some("base".to_string()),
     };
-    let model_path = prepare_model_path(&args.model.context("model")?, app_handle)?;
 
     eprintln!("Transcribe... 🔄");
     let start = Instant::now(); // Measure start time
-    let ctx = transcribe::create_context(&model_path, None, None)?;
     #[allow(unused_mut)]
-    let mut transcript = transcribe::transcribe(&ctx, &options, None, None, None, None, None)?;
+    let mut transcript = transcribe::transcribe(&options, None, None, None, None, None)?;
 
     let elapsed = start.elapsed();
     println!(

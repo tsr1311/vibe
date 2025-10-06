@@ -7,21 +7,13 @@ use crate::{
 use eyre::eyre;
 use once_cell::sync::Lazy;
 use std::fs;
+use std::sync::Mutex;
 use tauri::{App, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_store::StoreExt;
-use tokio::sync::Mutex;
-use vibe_core::transcribe::WhisperContext;
 
-pub static STATIC_APP: Lazy<std::sync::Mutex<Option<tauri::AppHandle>>> = Lazy::new(|| std::sync::Mutex::new(None));
-
-pub struct ModelContext {
-    pub path: String,
-    pub gpu_device: Option<i32>,
-    pub use_gpu: Option<bool>,
-    pub handle: WhisperContext,
-}
+pub static STATIC_APP: Lazy<Mutex<Option<tauri::AppHandle>>> = Lazy::new(|| Mutex::new(None));
 
 pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     // Add panic hook
@@ -35,8 +27,8 @@ pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(&app_config_dir)
         .unwrap_or_else(|_| panic!("cant create app config directory at {}", app_config_dir.display()));
 
-    // Manage model context
-    app.manage(Mutex::new(None::<ModelContext>));
+    // Manage model context (not needed for faster-whisper)
+    // app.manage(Mutex::new(None::<ModelContext>));
 
     let store = app.store(STORE_FILENAME)?;
 

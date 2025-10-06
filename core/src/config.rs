@@ -18,6 +18,7 @@ pub struct TranscribeOptions {
     pub max_sentence_len: Option<i32>,
     pub sampling_strategy: Option<String>,
     pub sampling_bestof_or_beam_size: Option<i32>,
+    pub model: Option<String>,
 }
 
 impl fmt::Debug for TranscribeOptions {

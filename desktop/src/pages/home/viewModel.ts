@@ -351,7 +351,7 @@ export function viewModel() {
 		var newSegments: transcript.Segment[] = []
 		try {
 			const modelPath = preferenceRef.current.modelPath
-			await invoke('load_model', { modelPath, gpuDevice: preferenceRef.current.gpuDevice, useGpu: preferenceRef.current.useGpu })
+			await invoke('load_model', { modelPath, gpuDevice: preferenceRef.current.gpuDevice.toString(), useGpu: preferenceRef.current.useGpu })
 			const options = {
 				path,
 				...preferenceRef.current.modelOptions,

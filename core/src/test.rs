@@ -13,7 +13,6 @@ use tracing_test::traced_test;
 #[serial]
 #[traced_test]
 fn test_transcribe() {
-    let ctx = create_context(&PathBuf::from("../ggml-tiny.bin"), None, None).unwrap();
     let options = &TranscribeOptions {
         init_prompt: None,
         lang: Some("en".into()),
@@ -27,9 +26,10 @@ fn test_transcribe() {
         word_timestamps: None,
         sampling_bestof_or_beam_size: None,
         sampling_strategy: None,
+        model: Some("tiny".into()),
     };
     let start = Instant::now();
-    let result = crate::transcribe::transcribe(&ctx, options, None, None, None, None, None);
+    let result = crate::transcribe::transcribe(options, None, None, None, None, None);
     println!("{:?}", result);
     println!(
         "Elapsed time: {:.2} seconds",

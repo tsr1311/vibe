@@ -43,6 +43,7 @@ futures = "0.3.30"
 cpal = "0.15.3"
 hound = "3.5.1"
 rand = "0.8.5"
+reqwest = { version = "0.12", features = ["json"] }
 
 # Server
 axum = { version = "0.7.5", optional = true }

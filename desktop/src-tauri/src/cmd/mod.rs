@@ -1,11 +1,10 @@
 use crate::config::STORE_FILENAME;
-use crate::setup::ModelContext;
 use crate::utils::{get_current_dir, LogError};
 use eyre::{bail, eyre, Context, ContextCompat, OptionExt, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -14,9 +13,8 @@ use tauri::{
     window::{ProgressBarState, ProgressBarStatus},
     Manager,
 };
-use tauri::{Emitter, Listener, State};
+use tauri::{Emitter, Listener};
 use tauri_plugin_store::StoreExt;
-use tokio::sync::Mutex;
 use vibe_core::get_vibe_temp_folder;
 use vibe_core::transcript::Segment;
 use vibe_core::transcript::Transcript;
@@ -130,6 +128,18 @@ pub async fn download_model(app_handle: tauri::AppHandle, url: String, path: Str
         .await?;
     set_progress_bar(&app_handle_c, None)?;
     Ok(path.to_string())
+}
+
+#[tauri::command]
+pub async fn load_model(
+    _app_handle: tauri::AppHandle,
+    _model_path: String,
+    _gpu_device: Option<String>,
+    _use_gpu: Option<bool>,
+) -> Result<()> {
+    // Dummy command for compatibility - model loading is now handled by faster-whisper subprocess
+    tracing::debug!("load_model called - no-op for faster-whisper integration");
+    Ok(())
 }
 
 #[tauri::command]
@@ -263,15 +273,9 @@ pub async fn glob_files(folder: String, patterns: Vec<String>, recursive: bool) 
 pub async fn transcribe(
     app_handle: tauri::AppHandle,
     options: vibe_core::config::TranscribeOptions,
-    model_context_state: State<'_, Mutex<Option<ModelContext>>>,
     diarize_options: DiarizeOptions,
     ffmpeg_options: FfmpegOptions,
 ) -> Result<Transcript> {
-    let model_context = model_context_state.lock().await;
-    if model_context.is_none() {
-        bail!("Please load model first")
-    }
-    let ctx = model_context.as_ref().context("as ref")?;
     let app_handle_c = app_handle.clone();
 
     let new_segment_callback = move |segment: Segment| {
@@ -325,7 +329,6 @@ pub async fn transcribe(
     tracing::debug!("ffmpeg additional options: {:?}", ffmpeg_options);
     let unwind_result = catch_unwind(AssertUnwindSafe(|| {
         vibe_core::transcribe::transcribe(
-            &ctx.handle,
             &options,
             Some(Box::new(progress_callback)),
             Some(Box::new(new_segment_callback)),
@@ -425,41 +428,6 @@ pub fn get_rocm_version() -> String {
 pub fn is_avx2_enabled() -> bool {
     #[allow(clippy::comparison_to_empty)]
     return env!("WHISPER_NO_AVX") != "ON";
-}
-
-#[tauri::command]
-pub async fn load_model(
-    app_handle: tauri::AppHandle,
-    model_path: String,
-    gpu_device: Option<i32>,
-    use_gpu: Option<bool>,
-) -> Result<String> {
-    let model_context_state: State<'_, Mutex<Option<ModelContext>>> = app_handle.state();
-    let mut state_guard = model_context_state.lock().await;
-    if let Some(state) = state_guard.as_ref() {
-        // check if new path is different
-        if model_path != state.path || gpu_device != state.gpu_device || use_gpu != state.use_gpu {
-            tracing::debug!("model path or gpu device changed. reloading");
-            // reload
-            let context = vibe_core::transcribe::create_context(Path::new(&model_path), gpu_device, use_gpu)?;
-            *state_guard = Some(ModelContext {
-                path: model_path.clone(),
-                handle: context,
-                gpu_device,
-                use_gpu,
-            });
-        }
-    } else {
-        tracing::debug!("loading model first time");
-        let context = vibe_core::transcribe::create_context(Path::new(&model_path), gpu_device, use_gpu)?;
-        *state_guard = Some(ModelContext {
-            path: model_path.clone(),
-            handle: context,
-            gpu_device,
-            use_gpu,
-        });
-    }
-    Ok(model_path)
 }
 
 #[tauri::command]
@@ -570,6 +538,28 @@ pub fn rename_crash_file() -> Result<()> {
         get_vibe_temp_folder().join("crash.1.txt"),
     )
     .context("Can't delete file")
+}
+
+#[tauri::command]
+pub async fn check_ollama_connection(base_url: String, model: String, prompt: String) -> Result<String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&format!("{}/api/generate", base_url))
+        .header("Content-Type", "application/json")
+        .body(format!(
+            r#"{{"model": "{}", "prompt": "{}", "stream": false}}"#,
+            model,
+            prompt.replace("\"", "\\\"")
+        ))
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        bail!("Ollama request failed with status: {}", response.status());
+    }
+
+    let data: serde_json::Value = response.json().await?;
+    Ok(data["response"].as_str().unwrap_or("No response").to_string())
 }
 
 #[tauri::command]

@@ -91,11 +91,7 @@ fn main() -> Result<()> {
             cmd::get_logs_folder,
             cmd::show_log_path,
             cmd::show_temp_path,
-            cmd::get_ffmpeg_path,
-            cmd::ytdlp::download_audio,
-            cmd::ytdlp::get_temp_path,
-            cmd::is_crashed_recently,
-            cmd::rename_crash_file,
+            cmd::check_ollama_connection,
             #[cfg(windows)]
             cmd::set_high_gpu_preference
         ])

@@ -141,7 +141,7 @@ export function viewModel() {
 		startKeepAwake()
 
 		let localIndex = 0
-		await invoke('load_model', { modelPath: preference.modelPath, gpuDevice: preference.gpuDevice, useGpu: preference.useGpu })
+		await invoke('load_model', { modelPath: preference.modelPath, gpuDevice: preference.gpuDevice.toString(), useGpu: preference.useGpu })
 		setCurrentIndex(localIndex)
 		const loopStartTime = performance.now()
 		for (const file of files) {
